@@ -1,6 +1,5 @@
 # Azure Functions
 azure-functions
 
-# Development dependencies
-ruff
-black
+# Note: Development tools (e.g. ruff, black) should be managed separately
+# in a dedicated dev requirements file or environment, not as runtime deps.
