@@ -3,6 +3,7 @@ LLM interaction module with OpenTelemetry instrumentation.
 Simulates LLM calls with proper tracing and custom events.
 """
 
+import random
 import time
 from typing import Optional, Dict, Any
 from opentelemetry import trace
@@ -122,7 +123,6 @@ class LLMClient:
                 blocked_categories = []
                 
                 # Simulate occasional blocks (10% chance)
-                import random
                 if random.random() < 0.1:
                     is_safe = False
                     blocked_categories = ["hate", "violence"]

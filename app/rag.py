@@ -3,6 +3,7 @@ RAG (Retrieval-Augmented Generation) module with OpenTelemetry instrumentation.
 Simulates document retrieval and vector search with proper tracing.
 """
 
+import random
 import time
 from typing import List, Dict, Any
 from opentelemetry import trace
@@ -56,7 +57,6 @@ class RAGClient:
                 time.sleep(0.2)  # Simulate search latency
                 
                 # Simulated retrieval (in reality, this would use vector embeddings)
-                import random
                 retrieved_docs = random.sample(self.documents, min(top_k, len(self.documents)))
                 
                 # Add simulated similarity scores

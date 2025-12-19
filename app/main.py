@@ -205,7 +205,10 @@ def main():
     for i in range(3):
         try:
             result = app.process_request(f"Query {i+1}", use_rag=i % 2 == 0)
-            print(f"   ✓ Request {i+1}: {result['latency_ms']:.2f}ms")
+            if result.get('blocked'):
+                print(f"   ⚠ Request {i+1}: Blocked by safety filter")
+            else:
+                print(f"   ✓ Request {i+1}: {result['latency_ms']:.2f}ms")
         except Exception as e:
             print(f"   ✗ Request {i+1} error: {e}")
     
