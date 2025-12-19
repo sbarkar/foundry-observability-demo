@@ -1,0 +1,51 @@
+[tool.ruff]
+# Exclude common directories
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+]
+
+# Set line length to match Black
+line-length = 88
+
+# Target Python 3.11+
+target-version = "py311"
+
+[tool.ruff.lint]
+# Enable common rule sets
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+
+# Ignore specific rules if needed
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["api"]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | __pycache__
+  | build
+  | dist
+  | node_modules
+)/
+'''
