@@ -13,7 +13,9 @@
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,md}\""
   },
   "devDependencies": {
+    "@eslint/js": "^8.57.0",
     "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.29.1",
     "prettier": "^3.2.0"
   }
 }
