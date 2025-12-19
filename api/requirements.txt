@@ -1,0 +1,2 @@
+# Azure Functions runtime dependencies
+azure-functions==1.18.0

@@ -1,0 +1,17 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
+    "AZURE_OPENAI_ENDPOINT": "",
+    "AZURE_OPENAI_API_VERSION": "2024-02-01",
+    "AZURE_OPENAI_API_VERSION_NOTE": "Example value only; check Azure OpenAI documentation for the latest stable API version before use."
+  },
+  "Host": {
+    "LocalHttpPort": 7071,
+    "CORS": "http://localhost:3000",
+    "CORS_NOTE": "Set to specific origin(s) for production; localhost for local dev only",
+    "CORSCredentials": false
+  }
+}

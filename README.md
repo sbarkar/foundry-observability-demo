@@ -8,16 +8,40 @@ This project demonstrates observability and monitoring best practices for GenAI 
 
 ## Architecture
 
-The solution consists of:
+This project demonstrates a full-stack observability solution with:
 
-- **Frontend**: Static Web App (React/Next.js)
-- **Backend**: Function App (Python, Linux Consumption)
+- **Frontend** (`web/`): Static Web App (React/Next.js) - User interface for interacting with the GenAI application
+- **Backend** (`api/`): Function App (Python, Linux Consumption) - Azure Functions-based API layer for handling requests
+- **Infrastructure** (`infra/`): Bicep templates for Azure resource deployment
 - **AI Services**: Azure AI Search, Microsoft Foundry
-- **Observability**: Application Insights, Log Analytics Workspace
+- **Observability**: Application Insights + Log Analytics Workspace
 - **Storage**: Azure Storage Account
 - **Security**: Azure Key Vault for secrets management
+- **Documentation** (`docs/`): Additional project documentation
 
 All resources are deployed to **Sweden Central** (except the resource group in Switzerland North).
+
+## Repository Structure
+
+```
+foundry-observability-demo/
+├── web/                        # Frontend application
+├── api/                        # Azure Functions backend
+├── infra/                      # Infrastructure as Code (Bicep)
+│   ├── main.bicep             # Main Bicep template
+│   ├── parameters.json        # Deployment parameters
+│   ├── deploy.sh              # Automated deployment script
+│   ├── .bicepconfig.json      # Bicep configuration
+│   └── README.md              # Detailed infrastructure docs
+├── docs/                       # Documentation
+├── scripts/                    # Utility scripts
+│   └── generate-env.sh        # Generate .env from deployment
+├── .env.template              # Environment variables template
+├── .gitignore                 # Git ignore patterns
+├── pyproject.toml             # Python linting configuration
+├── LICENSE                    # License file
+└── README.md                  # This file
+```
 
 ## Getting Started
 
@@ -25,6 +49,9 @@ All resources are deployed to **Sweden Central** (except the resource group in S
 
 - Azure CLI installed and authenticated
 - Azure subscription with appropriate permissions
+- Python 3.11+
+- Node.js 18+
+- Azure Functions Core Tools (for local API development)
 - Git
 
 ### Infrastructure Deployment
@@ -56,21 +83,6 @@ For complete documentation including:
 
 See the comprehensive guide: **[infra/README.md](infra/README.md)**
 
-## Project Structure
-
-```
-foundry-observability-demo/
-├── infra/                      # Infrastructure as Code (Bicep)
-│   ├── main.bicep             # Main Bicep template
-│   ├── parameters.json        # Deployment parameters
-│   ├── deploy.sh              # Automated deployment script
-│   ├── .bicepconfig.json      # Bicep configuration
-│   └── README.md              # Detailed infrastructure docs
-├── .gitignore                 # Git ignore patterns
-├── LICENSE                    # License file
-└── README.md                  # This file
-```
-
 ## Infrastructure Resources
 
 | Resource | Purpose | Location |
@@ -84,11 +96,57 @@ foundry-observability-demo/
 | Azure AI Search | Search and vector store | Sweden Central |
 | Key Vault | Secrets management | Sweden Central |
 
-## Development
+## Local Development Setup
 
-### Local Development Setup
+### Backend (Azure Functions)
 
-(To be added in future issues)
+1. Navigate to the API directory:
+   ```bash
+   cd api/
+   ```
+
+2. Create a virtual environment:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   pip install -r requirements-dev.txt  # For development tools
+   ```
+
+4. Copy the example settings file:
+   ```bash
+   cp local.settings.example.json local.settings.json
+   ```
+
+5. Update `local.settings.json` with your configuration (do not commit this file)
+
+6. Run the Azure Functions locally:
+   ```bash
+   func start
+   ```
+
+The API will be available at `http://localhost:7071`
+
+### Frontend
+
+1. Navigate to the web directory:
+   ```bash
+   cd web/
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
 ### Environment Variables
 
@@ -101,6 +159,77 @@ az deployment group show \
   --name main \
   --query properties.outputs
 ```
+
+Or use the provided script:
+
+```bash
+./scripts/generate-env.sh
+```
+
+Key environment variables (set in `local.settings.json` for local development):
+
+- `AZURE_OPENAI_ENDPOINT`: Your Azure OpenAI endpoint URL
+- `AZURE_OPENAI_API_VERSION`: API version for Azure OpenAI
+- `APPLICATIONINSIGHTS_CONNECTION_STRING`: Application Insights connection string
+- `AZURE_SEARCH_ENDPOINT`: Azure AI Search endpoint
+- `AZURE_KEY_VAULT_ENDPOINT`: Key Vault URI
+- `STORAGE_ACCOUNT_NAME`: Storage account name
+
+## Development Conventions
+
+### Code Style
+
+**Python (API)**
+- Use Python 3.11+
+- Follow PEP 8 style guide
+- Use `ruff` for linting and `black` for code formatting
+- Line length: 88 characters
+
+**JavaScript/TypeScript (Frontend)**
+- Use ESLint for linting
+- Use Prettier for code formatting
+- Single quotes for strings
+- 2-space indentation
+- Semicolons required
+
+### Linting
+
+**Python**
+```bash
+# Run ruff linter
+ruff check .
+
+# Auto-fix issues
+ruff check --fix .
+
+# Format code with black
+black .
+```
+
+**Frontend**
+```bash
+cd web/
+
+# Run ESLint
+npm run lint
+
+# Auto-fix ESLint issues
+npm run lint:fix
+
+# Format with Prettier
+npm run format
+
+# Check formatting
+npm run format:check
+```
+
+## Configuration
+
+### API Configuration
+
+Configure the Azure Functions backend by creating a `local.settings.json` file in the `api/` directory. Use `local.settings.example.json` as a template.
+
+**Never commit `local.settings.json` to version control** - it may contain secrets.
 
 ## Deployment
 
@@ -156,7 +285,10 @@ All application telemetry flows to Application Insights and Log Analytics:
 
 ## Contributing
 
-(To be added)
+1. Follow the established code style and conventions
+2. Run linters before committing code
+3. Ensure all tests pass
+4. Keep commits focused and atomic
 
 ## License
 
