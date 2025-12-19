@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceGroupName": {
+      "value": "rg-foundry-demo"
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "openAIServiceName": {
+      "value": "aoai-foundry-demo"
+    },
+    "searchServiceName": {
+      "value": "srch-foundry-demo"
+    },
+    "staticWebAppName": {
+      "value": "swa-foundry-demo"
+    },
+    "functionAppName": {
+      "value": "func-foundry-demo"
+    },
+    "appInsightsName": {
+      "value": "appi-foundry-demo"
+    },
+    "tenantId": {
+      "value": "YOUR_TENANT_ID"
+    },
+    "clientId": {
+      "value": "YOUR_CLIENT_ID"
+    }
+  }
+}

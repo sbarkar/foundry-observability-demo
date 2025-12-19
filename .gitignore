@@ -205,3 +205,39 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Azure Functions
+local.settings.json
+.python_packages/
+.vscode/
+__blobstorage__/
+__queuestorage__/
+__azurite_db*__.json
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment files (contains secrets)
+.env
+*.env
+!.env.example
+
+# Bicep build outputs
+*.parameters.json
+!parameters.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

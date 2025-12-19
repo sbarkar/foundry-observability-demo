@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Foundry Chat Demo</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Azure Foundry Chat Demo</h1>
+            <div id="auth-section">
+                <button id="login-btn" class="btn">Sign In</button>
+                <button id="logout-btn" class="btn" style="display: none;">Sign Out</button>
+                <span id="user-name" style="display: none;"></span>
+            </div>
+        </header>
+
+        <div id="login-message" class="info-message">
+            Please sign in to start chatting
+        </div>
+
+        <div id="chat-container" style="display: none;">
+            <div class="settings-panel">
+                <label>
+                    <input type="checkbox" id="use-rag" checked>
+                    Enable RAG (Retrieval Augmented Generation)
+                </label>
+            </div>
+
+            <div id="chat-messages" class="chat-messages">
+                <div class="message assistant">
+                    <div class="message-content">
+                        <p>Hello! I'm your AI assistant powered by Azure OpenAI and Azure AI Search. How can I help you today?</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <textarea 
+                    id="message-input" 
+                    placeholder="Type your message here..."
+                    rows="3"
+                ></textarea>
+                <button id="send-btn" class="btn primary">Send</button>
+            </div>
+
+            <div id="status-bar" class="status-bar">
+                <span id="correlation-id"></span>
+                <span id="latency"></span>
+                <span id="tokens"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
