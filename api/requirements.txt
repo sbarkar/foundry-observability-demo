@@ -1,5 +1,5 @@
-# Azure Functions
-azure-functions>=1.18.0,<2.0.0
+# Azure Functions runtime dependencies
+azure-functions==1.18.0
 
 # Azure SDK
 azure-identity>=1.15.0,<2.0.0
