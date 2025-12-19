@@ -68,7 +68,25 @@ fi
 
 ACCOUNT_NAME=$(az account show --query name -o tsv)
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+USER_OBJECT_ID=$(az ad signed-in-user show --query id -o tsv)
 log_info "Using subscription: $ACCOUNT_NAME ($SUBSCRIPTION_ID)"
+
+ensure_role_assignment() {
+    local scope=$1
+    local role=$2
+    local principal=$3
+
+    if az role assignment list --scope "$scope" --role "$role" --assignee "$principal" --query "[0].id" -o tsv | grep -q "."; then
+        log_info "Role '$role' already assigned to principal $principal at scope $scope"
+    else
+        log_info "Assigning role '$role' to principal $principal at scope $scope"
+        az role assignment create \
+            --assignee "$principal" \
+            --role "$role" \
+            --scope "$scope" \
+            --only-show-errors >/dev/null
+    fi
+}
 
 # =============================================================================
 # Resource Group Setup
@@ -144,6 +162,10 @@ STATIC_WEB_APP_NAME=$(az deployment group show --resource-group "$RESOURCE_GROUP
 KEY_VAULT_NAME=$(az deployment group show --resource-group "$RESOURCE_GROUP" --name "$DEPLOYMENT_NAME" --query properties.outputs.keyVaultName.value -o tsv)
 SEARCH_SERVICE_NAME=$(az deployment group show --resource-group "$RESOURCE_GROUP" --name "$DEPLOYMENT_NAME" --query properties.outputs.searchServiceName.value -o tsv)
 STORAGE_ACCOUNT_NAME=$(az deployment group show --resource-group "$RESOURCE_GROUP" --name "$DEPLOYMENT_NAME" --query properties.outputs.storageAccountName.value -o tsv)
+KEY_VAULT_ID=$(az keyvault show --name "$KEY_VAULT_NAME" --resource-group "$RESOURCE_GROUP" --query id -o tsv)
+
+# Ensure the caller can set secrets in Key Vault before post-deployment writes
+ensure_role_assignment "$KEY_VAULT_ID" "Key Vault Secrets Officer" "$USER_OBJECT_ID"
 
 echo ""
 log_info "==================================================================="

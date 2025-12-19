@@ -19,6 +19,9 @@
 @description('The location for all resources (except Resource Group)')
 param location string = 'swedencentral'
 
+@description('The location for Static Web App (must be in supported region)')
+param staticWebAppLocation string = 'westeurope'
+
 @description('The environment name (e.g., dev, test, prod)')
 param environmentName string = 'demo'
 
@@ -272,7 +275,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
 // =============================================================================
 resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   name: staticWebAppName
-  location: location
+  location: staticWebAppLocation
   tags: tags
   sku: {
     name: 'Free'
