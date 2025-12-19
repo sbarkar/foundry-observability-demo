@@ -205,3 +205,11 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Azure/Bicep
+# Generated ARM templates from Bicep compilation
+infra/main.json
+
+# Deployment outputs
+deployment-outputs.json
+deployment-result.json
