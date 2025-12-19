@@ -2,6 +2,7 @@
   "name": "foundry-observability-demo-web",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "description": "Frontend for Foundry Observability Demo",
   "scripts": {
     "dev": "echo 'Add your dev server command here'",
