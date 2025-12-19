@@ -4,7 +4,7 @@
 // This Bicep template deploys the minimal demo infrastructure for the
 // Foundry observability demo project.
 //
-// Target Resource Group: rg-foundry-demo (Switzerland North)
+// Target Resource Group: rg-foundry-demo (located in Switzerland North)
 // All resources deployed in: Sweden Central
 //
 // Resources:
