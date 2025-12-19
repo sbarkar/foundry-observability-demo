@@ -68,7 +68,7 @@ param tags object = {
 // =============================================================================
 // Storage Account
 // =============================================================================
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: storageAccountName
   location: location
   tags: tags
@@ -263,7 +263,6 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
       ]
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
-      pythonVersion: '3.11'
     }
   }
 }
@@ -280,8 +279,6 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
     tier: 'Free'
   }
   properties: {
-    repositoryUrl: ''
-    branch: ''
     buildProperties: {
       skipGithubActionWorkflowGeneration: true
     }
@@ -389,7 +386,10 @@ output staticWebAppName string = staticWebApp.name
 output staticWebAppDefaultHostName string = staticWebApp.properties.defaultHostname
 
 // App Settings for Function App (for use in issues #3 and #7)
-@description('Complete app settings for Function App configuration')
+// NOTE: AzureWebJobsStorage and WEBSITE_CONTENTAZUREFILECONNECTIONSTRING connection strings
+// are incomplete and require AccountKey to be added. Retrieve the storage key from Key Vault
+// and append ";AccountKey=<key>" to these connection strings for production use.
+@description('Complete app settings for Function App configuration. Storage connection strings require AccountKey from Key Vault.')
 output functionAppSettings object = {
   AzureWebJobsStorage: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage}'
   WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage}'
