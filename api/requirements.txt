@@ -1,0 +1,6 @@
+# Azure Functions
+azure-functions
+
+# Development dependencies
+ruff
+black
