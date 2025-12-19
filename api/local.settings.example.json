@@ -11,6 +11,7 @@
   "Host": {
     "LocalHttpPort": 7071,
     "CORS": "http://localhost:3000",
+    "CORS_NOTE": "Set to specific origin(s) for production; localhost for local dev only",
     "CORSCredentials": false
   }
 }

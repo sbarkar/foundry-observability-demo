@@ -97,6 +97,7 @@ npm run format:check
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
+   pip install -r requirements-dev.txt  # For development tools
    ```
 
 4. Copy the example settings file:

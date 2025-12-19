@@ -1,0 +1,5 @@
+# Development dependencies for linting and formatting
+# Install with: pip install -r requirements-dev.txt
+
+ruff==0.6.9
+black==24.10.0
