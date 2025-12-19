@@ -3,15 +3,25 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "python",
-    "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
-    "AZURE_OPENAI_ENDPOINT": "",
-    "AZURE_OPENAI_API_VERSION": "2024-02-01",
-    "AZURE_OPENAI_API_VERSION_NOTE": "Example value only; check Azure OpenAI documentation for the latest stable API version before use."
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://[region].in.applicationinsights.azure.com/",
+    
+    "AZURE_OPENAI_ENDPOINT": "https://[your-resource].openai.azure.com/",
+    "AZURE_OPENAI_DEPLOYMENT_NAME": "gpt-4",
+    "AZURE_OPENAI_API_VERSION": "2024-02-15-preview",
+    "AZURE_OPENAI_API_VERSION_NOTE": "Example value only; check Azure OpenAI documentation for the latest stable API version before use.",
+    
+    "AZURE_SEARCH_ENDPOINT": "https://[your-search-service].search.windows.net",
+    "AZURE_SEARCH_INDEX_NAME": "your-index-name",
+    "AZURE_SEARCH_TOP_K": "3",
+    "RAG_ENABLED": "false",
+    
+    "ENTRA_ISSUER": "https://login.microsoftonline.com/[tenant-id]/v2.0",
+    "ENTRA_AUDIENCE": "api://[your-app-id]",
+    "JWT_VALIDATION_ENABLED": "true"
   },
   "Host": {
     "LocalHttpPort": 7071,
     "CORS": "http://localhost:3000",
-    "CORS_NOTE": "Set to specific origin(s) for production; localhost for local dev only",
     "CORSCredentials": false
   }
 }

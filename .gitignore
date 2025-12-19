@@ -249,6 +249,8 @@ out/
 
 # Azure Functions
 local.settings.json
+.python_packages/
+.azurefunctions/
 bin/
 obj/
 

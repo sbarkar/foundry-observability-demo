@@ -11,7 +11,13 @@ This project demonstrates observability and monitoring best practices for GenAI 
 This project demonstrates a full-stack observability solution with:
 
 - **Frontend** (`web/`): Static Web App (React/Next.js) - User interface for interacting with the GenAI application
-- **Backend** (`api/`): Function App (Python, Linux Consumption) - Azure Functions-based API layer for handling requests
+- **Backend** (`api/`): Function App (Python, Linux Consumption) - Azure Functions-based API layer with:
+  - **Health Check Endpoint** (`/api/health`): No authentication required
+  - **Chat Endpoint** (`/api/chat`): Entra ID JWT authentication
+  - **Azure OpenAI Integration**: Uses DefaultAzureCredential for managed identity
+  - **Optional RAG**: Query Azure AI Search and inject context into prompts
+  - **OpenTelemetry**: Full instrumentation with Application Insights
+  - **Stateless Design**: No database, metadata-only logging (no user content stored)
 - **Infrastructure** (`infra/`): Bicep templates for Azure resource deployment
 - **AI Services**: Azure AI Search, Microsoft Foundry
 - **Observability**: Application Insights + Log Analytics Workspace
@@ -27,6 +33,13 @@ All resources are deployed to **Sweden Central** (except the resource group in S
 foundry-observability-demo/
 ├── web/                        # Frontend application
 ├── api/                        # Azure Functions backend
+│   ├── function_app.py        # Main functions app
+│   ├── health.py              # Health check endpoint
+│   ├── chat.py                # Chat endpoint with OpenAI & RAG
+│   ├── auth.py                # JWT validation
+│   ├── telemetry.py           # OpenTelemetry configuration
+│   ├── tests/                 # Unit tests (16 tests)
+│   └── README.md              # Detailed API documentation
 ├── infra/                      # Infrastructure as Code (Bicep)
 │   ├── main.bicep             # Main Bicep template
 │   ├── parameters.json        # Deployment parameters
@@ -131,6 +144,8 @@ See the comprehensive guide: **[infra/README.md](infra/README.md)**
 
 The API will be available at `http://localhost:7071`
 
+For detailed API documentation, see [api/README.md](api/README.md).
+
 ### Frontend
 
 1. Navigate to the web directory:
@@ -174,6 +189,19 @@ Key environment variables (set in `local.settings.json` for local development):
 - `AZURE_SEARCH_ENDPOINT`: Azure AI Search endpoint
 - `AZURE_KEY_VAULT_ENDPOINT`: Key Vault URI
 - `STORAGE_ACCOUNT_NAME`: Storage account name
+
+## API Features
+
+The backend API provides:
+
+- ✅ Entra ID JWT authentication with configurable issuer/audience
+- ✅ Azure OpenAI integration via Foundry deployment
+- ✅ Optional RAG with Azure AI Search
+- ✅ Correlation IDs for request tracking
+- ✅ OpenTelemetry instrumentation to Application Insights
+- ✅ Stateless, metadata-only logging (no user content stored)
+- ✅ Comprehensive unit tests (16 tests)
+- ✅ VS Code devcontainer support
 
 ## Development Conventions
 
@@ -239,9 +267,9 @@ Configure the Azure Functions backend by creating a `local.settings.json` file i
 
 See [infra/README.md](infra/README.md) for deployment instructions.
 
-### Function App (Issue #7)
+### Function App (Issue #C)
 
-🔜 **Coming Soon** - Python Function App deployment.
+✅ **Completed** - Python Function App with JWT auth, OpenAI integration, and OpenTelemetry.
 
 Required app settings are outputted by the infrastructure deployment.
 
@@ -282,6 +310,8 @@ All application telemetry flows to Application Insights and Log Analytics:
 - **Secrets**: All secrets stored in Azure Key Vault
 - **HTTPS Only**: All endpoints enforce HTTPS
 - **TLS 1.2**: Minimum TLS version enforced
+- **JWT Authentication**: Entra ID token validation for API endpoints
+- **No User Content in Logs**: Metadata-only logging policy
 
 ## Contributing
 
@@ -297,8 +327,8 @@ See [LICENSE](LICENSE) file for details.
 ## Related Issues
 
 - **Issue #B** (This): Bicep/IaC deployment ✅
+- **Issue #C** (This): Azure Functions API ✅
 - **Issue #3**: Static Web App deployment 🔜
-- **Issue #7**: Function App implementation 🔜
 
 ## Support
 
