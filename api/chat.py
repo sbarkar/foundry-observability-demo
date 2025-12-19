@@ -9,7 +9,6 @@ from typing import Dict, List, Optional
 from azure.identity import DefaultAzureCredential
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage
-from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 from correlation import generate_correlation_id
 from auth import validate_jwt_token, extract_bearer_token
@@ -17,6 +16,9 @@ from telemetry import get_tracer, add_span_attributes
 import jwt
 
 logger = logging.getLogger(__name__)
+
+# Constants
+MAX_MESSAGE_LENGTH = 4000
 
 # Create blueprint for chat function
 bp = func.Blueprint()
@@ -284,12 +286,12 @@ def chat(req: func.HttpRequest) -> func.HttpResponse:
                 )
             
             # Check if message is too long
-            if len(user_message) > 4000:
+            if len(user_message) > MAX_MESSAGE_LENGTH:
                 logger.warning(f"Message too long - correlationId: {correlation_id}")
                 return func.HttpResponse(
                     body=json.dumps({
                         "error": "Bad Request",
-                        "message": "Message exceeds maximum length of 4000 characters",
+                        "message": f"Message exceeds maximum length of {MAX_MESSAGE_LENGTH} characters",
                         "correlationId": correlation_id
                     }),
                     status_code=400,

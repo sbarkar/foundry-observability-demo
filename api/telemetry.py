@@ -8,6 +8,9 @@ from opentelemetry.sdk.trace import TracerProvider
 
 logger = logging.getLogger(__name__)
 
+# Sensitive field names that should never be logged
+SENSITIVE_FIELDS = ['content', 'message', 'query', 'text']
+
 
 def initialize_telemetry():
     """
@@ -46,5 +49,5 @@ def add_span_attributes(span, attributes: dict):
     if span and span.is_recording():
         for key, value in attributes.items():
             # Only log metadata, never user content
-            if value and not any(sensitive in key.lower() for sensitive in ['content', 'message', 'query', 'text']):
+            if value and not any(sensitive in key.lower() for sensitive in SENSITIVE_FIELDS):
                 span.set_attribute(key, value)
