@@ -23,9 +23,6 @@
   "[markdown]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "python.linting.enabled": true,
-  "python.linting.ruffEnabled": true,
-  "python.formatting.provider": "black",
   "files.exclude": {
     "**/__pycache__": true,
     "**/.pytest_cache": true,
