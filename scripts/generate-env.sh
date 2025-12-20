@@ -60,8 +60,7 @@ fi
 # Extract values
 log_info "Extracting configuration values..."
 
-APPINSIGHTS_CONNECTION=$(echo "$OUTPUTS" | jq -r .applicationInsightsConnectionString.value)
-APPINSIGHTS_KEY=$(echo "$OUTPUTS" | jq -r .applicationInsightsInstrumentationKey.value)
+APPINSIGHTS_NAME=$(echo "$OUTPUTS" | jq -r .applicationInsightsName.value)
 STORAGE_NAME=$(echo "$OUTPUTS" | jq -r .storageAccountName.value)
 STORAGE_ENDPOINT=$(echo "$OUTPUTS" | jq -r .storageBlobEndpoint.value)
 SEARCH_ENDPOINT=$(echo "$OUTPUTS" | jq -r .searchServiceEndpoint.value)
@@ -72,6 +71,25 @@ FUNCTION_NAME=$(echo "$OUTPUTS" | jq -r .functionAppName.value)
 FUNCTION_HOST=$(echo "$OUTPUTS" | jq -r .functionAppHostName.value)
 STATIC_HOST=$(echo "$OUTPUTS" | jq -r .staticWebAppDefaultHostName.value)
 STATIC_NAME=$(echo "$OUTPUTS" | jq -r .staticWebAppName.value)
+
+# Foundry
+FOUNDRY_ACCOUNT_ENDPOINT=$(echo "$OUTPUTS" | jq -r .foundryAccountEndpoint.value)
+FOUNDRY_PROJECT_NAME=$(echo "$OUTPUTS" | jq -r .foundryProjectName.value)
+
+# Fetch App Insights details without relying on deployment outputs (avoid persisting sensitive values)
+log_info "Fetching Application Insights details from resource '$APPINSIGHTS_NAME'..."
+
+APPINSIGHTS_CONNECTION=$(az resource show \
+    --resource-group "$RESOURCE_GROUP" \
+    --resource-type "Microsoft.Insights/components" \
+    --name "$APPINSIGHTS_NAME" \
+    --query properties.ConnectionString -o tsv 2>/dev/null || echo "")
+
+APPINSIGHTS_KEY=$(az resource show \
+    --resource-group "$RESOURCE_GROUP" \
+    --resource-type "Microsoft.Insights/components" \
+    --name "$APPINSIGHTS_NAME" \
+    --query properties.InstrumentationKey -o tsv 2>/dev/null || echo "")
 
 # Get secrets from Key Vault
 log_info "Fetching secrets from Key Vault '$KEYVAULT_NAME'..."
@@ -140,9 +158,9 @@ WEBSITE_CONTENTSHARE=$(echo "$FUNCTION_NAME" | tr '[:upper:]' '[:lower:]')
 FUNCTIONS_EXTENSION_VERSION=~4
 FUNCTIONS_WORKER_RUNTIME=python
 
-# Microsoft Foundry (manual setup required)
-FOUNDRY_PROJECT_ENDPOINT=
-FOUNDRY_PROJECT_ID=
+# Azure AI Foundry
+FOUNDRY_ACCOUNT_ENDPOINT=$FOUNDRY_ACCOUNT_ENDPOINT
+FOUNDRY_PROJECT_NAME=$FOUNDRY_PROJECT_NAME
 
 # Development Settings
 ENVIRONMENT=local
@@ -167,7 +185,6 @@ echo ""
 log_info "==================================================================="
 log_info "Manual steps remaining:"
 log_info "==================================================================="
-echo "1. Create Microsoft Foundry project (see infra/README.md)"
-echo "2. Update FOUNDRY_PROJECT_ENDPOINT and FOUNDRY_PROJECT_ID in $ENV_FILE"
+echo "1. Configure Static Web App deployment token in GitHub Secrets (for CI/CD)"
 echo ""
 log_info "Your .env file is ready for local development!"
