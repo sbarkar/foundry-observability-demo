@@ -1,0 +1,45 @@
+{
+  "name": "Azure Functions Python Dev",
+  "image": "mcr.microsoft.com/azure-functions/python:4-python3.9",
+  "features": {
+    "ghcr.io/devcontainers/features/azure-cli:1": {},
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.9"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-azurefunctions",
+        "ms-vscode.azurecli",
+        "GitHub.copilot"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": false,
+        "python.linting.flake8Enabled": true,
+        "python.formatting.provider": "black",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "azureFunctions.deploySubpath": "api",
+        "azureFunctions.projectLanguage": "Python",
+        "azureFunctions.projectRuntime": "~4"
+      }
+    }
+  },
+  "postCreateCommand": "cd api && pip install -r requirements.txt && pip install pytest pytest-cov black flake8",
+  "remoteUser": "root",
+  "forwardPorts": [7071],
+  "portsAttributes": {
+    "7071": {
+      "label": "Azure Functions",
+      "onAutoForward": "notify"
+    }
+  }
+}
