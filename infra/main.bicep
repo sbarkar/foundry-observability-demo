@@ -68,6 +68,30 @@ param tags object = {
   ManagedBy: 'Bicep'
 }
 
+@description('Object ID of the deployer principal (user/service principal) used to populate Key Vault secrets via the template. Pass from deploy script/pipeline.')
+param deployerObjectId string
+
+// =============================================================================
+// Azure AI Foundry (Cognitive Services AIServices)
+// =============================================================================
+@description('The name of the Azure AI Foundry account (Cognitive Services AIServices)')
+param foundryAccountName string = 'aif-${environmentName}-${uniqueSuffix}'
+
+@description('The name of the Azure AI Foundry project')
+param foundryProjectName string = '${foundryAccountName}-proj'
+
+@description('The SKU of the Azure AI Foundry account')
+@allowed([
+  'S0'
+])
+param foundrySku string = 'S0'
+
+@description('Whether to deploy a starter model to Foundry (costs may apply)')
+param deployFoundryModel bool = false
+
+@description('The model name to deploy when deployFoundryModel is enabled')
+param foundryModelName string = 'gpt-5-mini'
+
 // =============================================================================
 // Storage Account
 // =============================================================================
@@ -188,6 +212,65 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 }
 
 // =============================================================================
+// Managed Identity (User Assigned)
+// =============================================================================
+resource functionUami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: 'uami-${functionAppName}'
+  location: location
+  tags: tags
+}
+
+// Grant deployer ability to write secrets to Key Vault (required when KV uses RBAC)
+resource keyVaultSecretsOfficerDeployerRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(keyVault.id, deployerObjectId, 'Key Vault Secrets Officer')
+  scope: keyVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
+    ) // Key Vault Secrets Officer
+    principalId: deployerObjectId
+  }
+}
+
+// Pre-provision secrets used by App Service Key Vault references
+var storageAccountKey = storageAccount.listKeys().keys[0].value
+var storageConnString = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccountKey};EndpointSuffix=${environment().suffixes.storage}'
+
+resource kvSecretStorageAccountKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'StorageAccountKey'
+  properties: {
+    value: storageAccountKey
+  }
+  dependsOn: [
+    keyVaultSecretsOfficerDeployerRole
+  ]
+}
+
+resource kvSecretAzureWebJobsStorage 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'AzureWebJobsStorage'
+  properties: {
+    value: storageConnString
+  }
+  dependsOn: [
+    keyVaultSecretsOfficerDeployerRole
+  ]
+}
+
+resource kvSecretWebsiteContentConnString 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'WebsiteContentAzureFileConnectionString'
+  properties: {
+    value: storageConnString
+  }
+  dependsOn: [
+    keyVaultSecretsOfficerDeployerRole
+  ]
+}
+
+// =============================================================================
 // App Service Plan (Consumption)
 // =============================================================================
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
@@ -213,23 +296,27 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
   tags: tags
   kind: 'functionapp,linux'
   identity: {
-    type: 'SystemAssigned'
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${functionUami.id}': {}
+    }
   }
   properties: {
     serverFarmId: appServicePlan.id
     reserved: true
     httpsOnly: true
     clientAffinityEnabled: false
+    keyVaultReferenceIdentity: functionUami.id
     siteConfig: {
       linuxFxVersion: 'PYTHON|3.11'
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/AzureWebJobsStorage)'
         }
         {
           name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/WebsiteContentAzureFileConnectionString)'
         }
         {
           name: 'WEBSITE_CONTENTSHARE'
@@ -256,6 +343,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           value: 'https://${searchService.name}.search.windows.net'
         }
         {
+          name: 'AZURE_SEARCH_ADMIN_KEY'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/AzureSearchAdminKey)'
+        }
+        {
           name: 'AZURE_KEY_VAULT_ENDPOINT'
           value: keyVault.properties.vaultUri
         }
@@ -268,6 +359,11 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
       minTlsVersion: '1.2'
     }
   }
+  dependsOn: [
+    keyVaultSecretsUserRole
+    kvSecretAzureWebJobsStorage
+    kvSecretWebsiteContentConnString
+  ]
 }
 
 // =============================================================================
@@ -298,27 +394,94 @@ resource staticWebAppAppInsights 'Microsoft.Web/staticSites/config@2023-01-01' =
 }
 
 // =============================================================================
+// Azure AI Foundry (AIServices account + project)
+// =============================================================================
+resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' = {
+  name: foundryAccountName
+  location: location
+  tags: tags
+  identity: {
+    type: 'SystemAssigned'
+  }
+  sku: {
+    name: foundrySku
+  }
+  kind: 'AIServices'
+  properties: {
+    allowProjectManagement: true
+    customSubDomainName: foundryAccountName
+    disableLocalAuth: true
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview' = {
+  name: foundryProjectName
+  parent: foundryAccount
+  location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {}
+}
+
+resource foundryModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployFoundryModel) {
+  parent: foundryAccount
+  name: foundryModelName
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 1
+  }
+  properties: {
+    model: {
+      name: foundryModelName
+      format: 'OpenAI'
+    }
+  }
+}
+
+// =============================================================================
 // Role Assignments
 // =============================================================================
 
+// Grant Function App access to Azure AI Foundry APIs via RBAC
+resource foundryCognitiveServicesUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(foundryAccount.id, functionUami.id, 'Cognitive Services User')
+  scope: foundryAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      'a97b65f3-24c7-4388-baec-2e87135dc908'
+    ) // Cognitive Services User
+    principalId: functionUami.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Grant Function App access to Key Vault Secrets
 resource keyVaultSecretsUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(keyVault.id, functionApp.id, 'Key Vault Secrets User')
+  name: guid(keyVault.id, functionUami.id, 'Key Vault Secrets User')
   scope: keyVault
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
-    principalId: functionApp.identity.principalId
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '4633458b-17de-408a-b874-0445c86b69e6'
+    ) // Key Vault Secrets User
+    principalId: functionUami.properties.principalId
     principalType: 'ServicePrincipal'
   }
 }
 
 // Grant Function App access to Storage Blob Data Contributor
 resource storageBlobDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionApp.id, 'Storage Blob Data Contributor')
+  name: guid(storageAccount.id, functionUami.id, 'Storage Blob Data Contributor')
   scope: storageAccount
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe') // Storage Blob Data Contributor
-    principalId: functionApp.identity.principalId
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+    ) // Storage Blob Data Contributor
+    principalId: functionUami.properties.principalId
     principalType: 'ServicePrincipal'
   }
 }
@@ -341,12 +504,6 @@ output storageAccountName string = storageAccount.name
 output storageBlobEndpoint string = storageAccount.properties.primaryEndpoints.blob
 
 // Application Insights Outputs
-@description('The Application Insights connection string')
-output applicationInsightsConnectionString string = appInsights.properties.ConnectionString
-
-@description('The Application Insights instrumentation key')
-output applicationInsightsInstrumentationKey string = appInsights.properties.InstrumentationKey
-
 @description('The name of the Application Insights resource')
 output applicationInsightsName string = appInsights.name
 
@@ -379,7 +536,26 @@ output functionAppName string = functionApp.name
 output functionAppHostName string = functionApp.properties.defaultHostName
 
 @description('The Function App principal ID (for role assignments)')
-output functionAppPrincipalId string = functionApp.identity.principalId
+output functionAppPrincipalId string = functionUami.properties.principalId
+
+// Azure AI Foundry Outputs
+@description('The name of the Azure AI Foundry account')
+output foundryAccountName string = foundryAccount.name
+
+@description('The endpoint of the Azure AI Foundry account')
+output foundryAccountEndpoint string = foundryAccount.properties.endpoint
+
+@description('The name of the Azure AI Foundry project')
+output foundryProjectName string = foundryProject.name
+
+@description('The Foundry account principal ID')
+output foundryAccountPrincipalId string = foundryAccount.identity.principalId
+
+@description('The Foundry project principal ID')
+output foundryProjectPrincipalId string = foundryProject.identity.principalId
+
+@description('The deployed model name (if enabled)')
+output foundryModelDeploymentName string = deployFoundryModel ? foundryModelDeployment.name : 'not-deployed'
 
 // Static Web App Outputs
 @description('The name of the Static Web App')
@@ -390,17 +566,15 @@ output staticWebAppDefaultHostName string = staticWebApp.properties.defaultHostn
 
 // App Settings for Function App (for use in issues #3 and #7)
 // NOTE: AzureWebJobsStorage and WEBSITE_CONTENTAZUREFILECONNECTIONSTRING connection strings
-// are incomplete and require AccountKey to be added. Retrieve the storage key from Key Vault
-// and append ";AccountKey=<key>" to these connection strings for production use.
-@description('Complete app settings for Function App configuration. Storage connection strings require AccountKey from Key Vault.')
+// are sourced from Key Vault at runtime via Key Vault references.
+@description('Complete app settings for Function App configuration. Storage connection strings are Key Vault references.')
 output functionAppSettings object = {
-  AzureWebJobsStorage: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage}'
-  WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage}'
+  AzureWebJobsStorage: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/AzureWebJobsStorage)'
+  WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/WebsiteContentAzureFileConnectionString)'
   WEBSITE_CONTENTSHARE: toLower(functionAppName)
   FUNCTIONS_EXTENSION_VERSION: '~4'
   FUNCTIONS_WORKER_RUNTIME: 'python'
-  APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
-  APPINSIGHTS_INSTRUMENTATIONKEY: appInsights.properties.InstrumentationKey
+  AZURE_SEARCH_ADMIN_KEY: '@Microsoft.KeyVault(SecretUri=${keyVault.properties.vaultUri}secrets/AzureSearchAdminKey)'
   AZURE_SEARCH_ENDPOINT: 'https://${searchService.name}.search.windows.net'
   AZURE_KEY_VAULT_ENDPOINT: keyVault.properties.vaultUri
   STORAGE_ACCOUNT_NAME: storageAccount.name
@@ -409,6 +583,5 @@ output functionAppSettings object = {
 // App Settings for Static Web App (for use in issues #3 and #7)
 @description('Complete app settings for Static Web App configuration')
 output staticWebAppSettings object = {
-  APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
   AZURE_FUNCTION_APP_URL: 'https://${functionApp.properties.defaultHostName}'
 }

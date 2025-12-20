@@ -17,6 +17,7 @@ The Bicep template deploys a complete observability infrastructure in Azure, tar
 | **Log Analytics Workspace** | Centralized log storage | PerGB2018 |
 | **Azure AI Search** | Search service for AI workloads | Basic |
 | **Key Vault** | Secrets management | Standard |
+| **Azure AI Foundry (AIServices account + project)** | Foundry control plane for AI projects | S0 (account), project with system-assigned identity |
 
 ### Architecture Notes
 
@@ -27,6 +28,7 @@ The Bicep template deploys a complete observability infrastructure in Azure, tar
   - Storage Blob Data Contributor role on Storage Account
 - **Security**: All resources use HTTPS only, TLS 1.2 minimum
 - **Monitoring**: All compute resources connected to Application Insights
+- **Azure AI Foundry**: Deploys an AIServices account + project with system-assigned identities; optional model deployment gated by `deployFoundryModel` parameter; Function App identity is granted `Cognitive Services User` on the Foundry account for API access
 
 ## Prerequisites
 
@@ -118,7 +120,6 @@ The deployment provides:
 
 #### For Function App Configuration (#7)
 - `functionAppSettings`: Complete app settings object
-- `applicationInsightsConnectionString`: Monitoring connection string
 - `searchServiceEndpoint`: Azure AI Search endpoint
 - `keyVaultUri`: Key Vault URI
 - `storageAccountName`: Storage account name
@@ -128,25 +129,43 @@ The deployment provides:
 - `staticWebAppDefaultHostName`: Web app URL
 - `functionAppHostName`: Backend API URL
 
+#### For Azure AI Foundry
+- `foundryAccountName`: AIServices account name
+- `foundryAccountEndpoint`: AIServices endpoint
+- `foundryProjectName`: Project name
+- `foundryAccountPrincipalId` / `foundryProjectPrincipalId`: Managed identities for RBAC
+- `foundryModelDeploymentName`: Name of the deployed model when `deployFoundryModel` is enabled
+
 ### Export Outputs to File
 
 ```bash
-# Export all outputs as JSON
+# Export all outputs as JSON (write under infra/.local/; ignored by git)
 az deployment group show \
   --resource-group rg-foundry-demo \
   --name main \
-  --query properties.outputs > deployment-outputs.json
+  --query properties.outputs > .local/deployment-outputs.json
 
 # Extract specific values
 az deployment group show \
   --resource-group rg-foundry-demo \
   --name main \
-  --query properties.outputs.applicationInsightsConnectionString.value -o tsv
+  --query properties.outputs.functionAppHostName.value -o tsv
 ```
 
 ## Post-Deployment Configuration
 
-### 1. Azure AI Search - Admin Key
+### 1. Key Vault Secrets (Automated)
+
+The deployment script [infra/deploy.sh](infra/deploy.sh) automatically stores required secrets in Key Vault (no manual copying):
+
+- `AzureSearchAdminKey` (Azure AI Search primary admin key)
+- `StorageAccountKey` (storage account key)
+- `AzureWebJobsStorage` (full connection string for Functions runtime)
+- `WebsiteContentAzureFileConnectionString` (full connection string for Functions content share)
+
+If you are not using the script, you can still set them manually.
+
+### 2. Azure AI Search - Admin Key (Manual fallback)
 
 The Azure AI Search admin key is not exposed via outputs (security best practice). Retrieve it manually:
 
@@ -175,7 +194,7 @@ az keyvault secret set \
   --value "<admin-key-from-previous-command>"
 ```
 
-### 2. Storage Account - Access Key
+### 3. Storage Account - Access Key (Manual fallback)
 
 Similarly, retrieve and store the storage account key:
 
@@ -196,7 +215,7 @@ az keyvault secret set \
   --value "$STORAGE_KEY"
 ```
 
-### 3. Static Web App - Deployment Token
+### 4. Static Web App - Deployment Token
 
 Retrieve the deployment token for CI/CD:
 
@@ -217,55 +236,17 @@ az staticwebapp secrets list \
 - Navigate to Secrets and variables > Actions
 - Add a new secret: `AZURE_STATIC_WEB_APPS_API_TOKEN`
 
-## Manual Steps Required
+## Azure AI Foundry Notes
 
-### Microsoft Foundry Project Creation
-
-**Important**: Foundry projects cannot be easily created via Bicep/IaC as they are in preview and don't have stable ARM/Bicep providers yet.
-
-**Manual Steps**:
-
-1. **Navigate to Azure Portal**
-   - Go to https://portal.azure.com
-   - Search for "Microsoft Foundry" or access via Azure AI Studio
-
-2. **Create a Foundry Project**
-   - Click "Create" or "New Project"
-   - **Project Name**: `foundry-observability-demo`
-   - **Resource Group**: Select `rg-foundry-demo`
-   - **Location**: Select `Sweden Central`
-   - **Associate with deployed resources**:
-     - Link the Application Insights instance created by this deployment
-     - Link the Storage Account for data storage
-     - Link the Azure AI Search service for vector search capabilities
-
-3. **Configure Project Settings**
-   - Enable logging and monitoring
-   - Set up any required connections to the Function App
-   - Configure access policies as needed
-
-4. **Note the Foundry Project Details**
-   - Copy the Project ID/Endpoint
-   - Store any required connection strings or keys in the Key Vault:
-     ```bash
-     az keyvault secret set \
-       --vault-name $KEY_VAULT_NAME \
-       --name "FoundryProjectEndpoint" \
-       --value "<your-foundry-project-endpoint>"
-     ```
-
-### Alternative: Azure CLI (if available)
-
-If Foundry supports CLI commands (check latest docs):
-
-```bash
-# Example command structure (verify with latest Foundry docs)
-az foundry project create \
-  --name foundry-observability-demo \
-  --resource-group rg-foundry-demo \
-  --location swedencentral \
-  --app-insights $(az deployment group show --resource-group rg-foundry-demo --name main --query properties.outputs.applicationInsightsName.value -o tsv)
-```
+- The template now deploys an Azure AI Foundry AIServices account plus a project (system-assigned identities). Set `foundryAccountName`/`foundryProjectName` as needed; `deployFoundryModel` controls an optional starter deployment (default: off, costs may apply).
+- RBAC: The Function App managed identity receives `Cognitive Services User` on the Foundry account for API access. Grant additional principals as needed:
+  ```bash
+  FOUNDRY_ID=$(az deployment group show --resource-group rg-foundry-demo --name main --query properties.outputs.foundryAccountName.value -o tsv)
+  FOUNDRY_SCOPE=$(az cognitiveservices account show --name $FOUNDRY_ID --resource-group rg-foundry-demo --query id -o tsv)
+  az role assignment create --assignee <object-id-or-upn> --role "Cognitive Services User" --scope $FOUNDRY_SCOPE
+  ```
+- Endpoints and principal IDs are exposed via outputs (`foundryAccountEndpoint`, `foundryAccountPrincipalId`, `foundryProjectPrincipalId`, `foundryModelDeploymentName`).
+- Local auth is disabled on the Foundry account; use Microsoft Entra/RBAC to call the APIs.
 
 ## Validation
 
@@ -396,6 +377,11 @@ az keyvault purge --name $KEY_VAULT_NAME
 | `uniqueSuffix` | Resource name suffix | Auto-generated | Any string |
 | `searchServiceSku` | AI Search SKU | `basic` | `basic`, `standard`, `standard2`, `standard3` |
 | `functionAppSku` | Function App plan SKU | `Y1` | `Y1` (Consumption) |
+| `foundryAccountName` | Azure AI Foundry AIServices account name | `aif-<env>-<suffix>` | Any string (must meet Cognitive Services naming rules) |
+| `foundryProjectName` | Azure AI Foundry project name | `<foundryAccountName>-proj` | Any string |
+| `foundrySku` | Azure AI Foundry AIServices SKU | `S0` | `S0` |
+| `deployFoundryModel` | Toggle deploying a starter model | `false` | `true`, `false` |
+| `foundryModelName` | Model name when deployment is enabled | `gpt-5-mini` | Any supported model name |
 | `tags` | Resource tags | See parameters.json | Any object |
 
 ## Resource Naming Convention

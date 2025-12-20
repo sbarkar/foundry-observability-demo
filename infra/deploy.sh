@@ -22,6 +22,7 @@ DEPLOYMENT_LOCATION="swedencentral"
 ENVIRONMENT_NAME="${1:-demo}"
 TEMPLATE_FILE="main.bicep"
 PARAMETERS_FILE="parameters.json"
+ARTIFACT_DIR=".local"
 
 # Colors for output
 RED='\033[0;31m'
@@ -58,7 +59,7 @@ if ! command -v az &> /dev/null; then
     exit 1
 fi
 
-log_info "Azure CLI version: $(az version --query '\"azure-cli\"' -o tsv)"
+log_info "Azure CLI version: $(az version --query '"azure-cli"' -o tsv)"
 
 # Check if logged in
 if ! az account show &> /dev/null; then
@@ -70,6 +71,9 @@ ACCOUNT_NAME=$(az account show --query name -o tsv)
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 USER_OBJECT_ID=$(az ad signed-in-user show --query id -o tsv)
 log_info "Using subscription: $ACCOUNT_NAME ($SUBSCRIPTION_ID)"
+
+# Ensure local artifact directory exists (ignored by git)
+mkdir -p "$ARTIFACT_DIR"
 
 ensure_role_assignment() {
     local scope=$1
@@ -112,7 +116,8 @@ az deployment group what-if \
     --resource-group "$RESOURCE_GROUP" \
     --template-file "$TEMPLATE_FILE" \
     --parameters "$PARAMETERS_FILE" \
-    --parameters environmentName="$ENVIRONMENT_NAME"
+    --parameters environmentName="$ENVIRONMENT_NAME" \
+    --parameters deployerObjectId="$USER_OBJECT_ID"
 
 echo ""
 read -p "Do you want to proceed with the deployment? (yes/no): " -r
@@ -127,6 +132,8 @@ fi
 
 log_info "Starting infrastructure deployment..."
 DEPLOYMENT_NAME="main-$(date +%Y%m%d-%H%M%S)"
+DEPLOYMENT_RESULT_FILE="$ARTIFACT_DIR/deployment-result-$DEPLOYMENT_NAME.json"
+DEPLOYMENT_OUTPUTS_FILE="$ARTIFACT_DIR/deployment-outputs-$DEPLOYMENT_NAME.json"
 
 az deployment group create \
     --resource-group "$RESOURCE_GROUP" \
@@ -134,7 +141,8 @@ az deployment group create \
     --template-file "$TEMPLATE_FILE" \
     --parameters "$PARAMETERS_FILE" \
     --parameters environmentName="$ENVIRONMENT_NAME" \
-    --output json > deployment-result.json
+    --parameters deployerObjectId="$USER_OBJECT_ID" \
+    --output json > "$DEPLOYMENT_RESULT_FILE"
 
 if [ $? -eq 0 ]; then
     log_info "Deployment completed successfully!"
@@ -152,9 +160,9 @@ log_info "Extracting deployment outputs..."
 az deployment group show \
     --resource-group "$RESOURCE_GROUP" \
     --name "$DEPLOYMENT_NAME" \
-    --query properties.outputs > deployment-outputs.json
+    --query properties.outputs > "$DEPLOYMENT_OUTPUTS_FILE"
 
-log_info "Deployment outputs saved to: deployment-outputs.json"
+log_info "Deployment outputs saved to: $DEPLOYMENT_OUTPUTS_FILE"
 
 # Extract key values
 FUNCTION_APP_NAME=$(az deployment group show --resource-group "$RESOURCE_GROUP" --name "$DEPLOYMENT_NAME" --query properties.outputs.functionAppName.value -o tsv)
@@ -213,6 +221,22 @@ az keyvault secret set \
     --value "$STORAGE_KEY" \
     --output none
 
+# Store connection strings for App Service Key Vault references
+log_info "Storing AzureWebJobsStorage connection string in Key Vault..."
+AZURE_WEBJOBS_STORAGE_CONN="DefaultEndpointsProtocol=https;AccountName=${STORAGE_ACCOUNT_NAME};AccountKey=${STORAGE_KEY};EndpointSuffix=core.windows.net"
+az keyvault secret set \
+    --vault-name "$KEY_VAULT_NAME" \
+    --name "AzureWebJobsStorage" \
+    --value "$AZURE_WEBJOBS_STORAGE_CONN" \
+    --output none
+
+log_info "Storing WEBSITE_CONTENTAZUREFILECONNECTIONSTRING in Key Vault..."
+az keyvault secret set \
+    --vault-name "$KEY_VAULT_NAME" \
+    --name "WebsiteContentAzureFileConnectionString" \
+    --value "$AZURE_WEBJOBS_STORAGE_CONN" \
+    --output none
+
 log_info "Post-deployment configuration completed!"
 
 # =============================================================================
@@ -225,36 +249,12 @@ log_info "Deployment Complete!"
 log_info "==================================================================="
 echo ""
 log_info "Next steps:"
-echo "  1. Review deployment outputs in: deployment-outputs.json"
-echo "  2. Create Microsoft Foundry project manually (see README.md)"
-echo "  3. Configure Static Web App deployment token in GitHub Secrets"
-echo "  4. Deploy Function App code (Issue #7)"
-echo "  5. Deploy Static Web App code (Issue #3)"
+echo "  1. Review deployment outputs in: $DEPLOYMENT_OUTPUTS_FILE"
+echo "  2. Configure Static Web App deployment token in GitHub Secrets"
+echo "  3. Deploy Function App code (Issue #7)"
+echo "  4. Deploy Static Web App code (Issue #3)"
 echo ""
 log_info "For detailed instructions, see: infra/README.md"
-echo ""
-
-# =============================================================================
-# Optional: Display Foundry Manual Steps
-# =============================================================================
-
-log_warn "MANUAL STEP REQUIRED: Create Microsoft Foundry Project"
-echo ""
-echo "Microsoft Foundry projects cannot be easily created via IaC."
-echo "Please follow these steps:"
-echo ""
-echo "  1. Navigate to Azure Portal: https://portal.azure.com"
-echo "  2. Search for 'Microsoft Foundry' or 'Azure AI Studio'"
-echo "  3. Create a new Foundry project:"
-echo "     - Name: foundry-observability-demo"
-echo "     - Resource Group: $RESOURCE_GROUP"
-echo "     - Location: $DEPLOYMENT_LOCATION"
-echo "     - Link to Application Insights: (use deployed instance)"
-echo "     - Link to Storage Account: $STORAGE_ACCOUNT_NAME"
-echo "     - Link to Azure AI Search: $SEARCH_SERVICE_NAME"
-echo ""
-echo "For detailed instructions, see the 'Manual Steps Required' section"
-echo "in infra/README.md"
 echo ""
 
 log_info "Deployment script completed successfully!"
