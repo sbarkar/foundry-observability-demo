@@ -23,7 +23,7 @@ This project demonstrates a full-stack observability solution with:
 - **Observability**: Application Insights + Log Analytics Workspace with custom dashboards
 - **Storage**: Azure Storage Account
 - **Security**: Azure Key Vault for secrets management
-- **Documentation** (`docs/`): Comprehensive observability guide with KQL queries
+- **Documentation** (`docs/`): Comprehensive observability guide with KQL queries and demo walkthroughs
 
 All resources are deployed to **Sweden Central** (except the resource group in Switzerland North).
 
@@ -38,6 +38,41 @@ All resources are deployed to **Sweden Central** (except the resource group in S
 - ✅ **KQL Dashboards**: 20+ production-ready queries for latency, costs, errors, and usage analysis
 - ✅ **Entra ID Authentication**: JWT validation for secure API access
 - ✅ **Infrastructure as Code**: Automated Bicep deployment
+- ✅ **Demo Documentation**: Step-by-step walkthroughs and operational runbooks
+
+## Documentation
+
+### 📖 [Demo Script](docs/demo-script.md)
+A 10-15 minute walkthrough demonstrating:
+- How to navigate the Foundry Portal
+- Running sample queries and viewing traces
+- Deep dive into Application Insights
+- Monitoring AI Search usage
+- Understanding the governance posture
+
+### 🏗️ [Architecture Diagrams](docs/architecture.md)
+Detailed architecture diagrams including:
+- System architecture overview
+- Request flow sequences
+- Telemetry data flow
+- Security & compliance architecture
+- Deployment and scaling patterns
+
+### 📋 [Operational Runbook](docs/runbook.md)
+Day-to-day operational procedures:
+- System health checks
+- Alert response procedures
+- Common issues and resolutions
+- Monitoring queries (KQL examples)
+- Escalation procedures
+
+### 📊 [Observability Guide](docs/observability.md)
+Complete KQL query library and best practices:
+- Latency analysis (p50, p95, p99)
+- Token usage and cost estimation
+- RAG performance metrics
+- Error tracking and debugging
+- Dashboard creation guide
 
 ## Repository Structure
 
@@ -60,6 +95,9 @@ foundry-observability-demo/
 │   └── README.md              # Detailed infrastructure docs
 ├── docs/                       # Documentation
 │   ├── observability.md       # Observability guide with KQL queries
+│   ├── demo-script.md         # 10-15 min demo walkthrough
+│   ├── architecture.md        # Architecture diagrams
+│   ├── runbook.md             # Operational procedures
 │   └── README.md              # Documentation index
 ├── scripts/                    # Utility scripts
 │   └── generate-env.sh        # Generate .env from deployment
@@ -109,6 +147,15 @@ For complete documentation including:
 - Troubleshooting tips
 
 See the comprehensive guide: **[infra/README.md](infra/README.md)**
+
+### Running the Demo
+
+After infrastructure deployment, follow the **[Demo Script](docs/demo-script.md)** for a guided 10-15 minute walkthrough of:
+- Navigating the Foundry Portal
+- Testing the chat endpoint
+- Viewing distributed traces in Application Insights
+- Analyzing AI Search usage metrics
+- Understanding the governance posture
 
 ## Infrastructure Resources
 
@@ -297,12 +344,38 @@ The backend API provides:
 
 ## Privacy & Security
 
-This application demonstrates **metadata-only logging**:
+This application demonstrates **metadata-only logging** with a privacy-first approach:
 
 ✅ **Logged**: Query length, token counts, latency, model names, document counts, correlation IDs  
 ❌ **NOT Logged**: Raw prompts, responses, document content, user messages
 
-Security features:
+### Governance Posture
+
+This solution adopts a **privacy-first, compliance-friendly** approach:
+
+- **No Content Storage**: User prompts, AI responses, and document snippets are NOT logged
+- **Metadata Only**: We collect operational telemetry (latency, token counts, status codes)
+- **Audit Trail**: Complete record of WHO accessed WHAT and WHEN—without WHAT was said
+- **Compliance**: Aligns with GDPR, CCPA, HIPAA, and other privacy regulations
+
+**What We Capture:**
+- Request timestamps and duration
+- User identity (Azure AD principal)
+- Model parameters (temperature, max tokens)
+- Token usage and costs
+- HTTP status codes and error types
+- Dependency call success/failure
+
+**What We DON'T Capture:**
+- User prompt text
+- AI-generated responses
+- Search query terms
+- Document content from search results
+
+This approach ensures that even if monitoring systems are compromised, no sensitive user data is exposed.
+
+### Security Features
+
 - **Managed Identities**: Function App uses system-assigned managed identity
 - **RBAC**: Least-privilege access to Key Vault and Storage
 - **Secrets**: All secrets stored in Azure Key Vault
@@ -312,6 +385,20 @@ Security features:
 - **No User Content in Logs**: Metadata-only logging policy
 
 Sensitive fields are explicitly filtered in the telemetry module.
+
+### Optional: Conversation History
+
+By default, this solution does NOT persist conversation history. However, for use cases requiring multi-turn conversations or feedback loops, you can enable **Cosmos DB integration**.
+
+**When to Enable:**
+- Multi-turn conversations requiring context
+- User feedback and rating systems
+- Regulatory requirements to retain records
+- Debugging complex user-reported issues
+
+See [docs/demo-script.md](docs/demo-script.md#optional-conversation-history-with-cosmos-db) and the `/infra` directory for Cosmos DB provisioning templates, connection configuration, data retention policies, and encryption setup.
+
+**⚠️ Important:** Enabling conversation history changes your compliance posture. Consult with legal and security teams before enabling in production.
 
 ## Development Conventions
 
@@ -381,6 +468,12 @@ Required app settings are outputted by the infrastructure deployment.
 
 See [docs/observability.md](docs/observability.md) for monitoring and query documentation.
 
+### Demo Documentation (Issue #F)
+
+✅ **Completed** - Comprehensive demo script, architecture diagrams, and operational runbooks.
+
+See [docs/demo-script.md](docs/demo-script.md), [docs/architecture.md](docs/architecture.md), and [docs/runbook.md](docs/runbook.md) for complete documentation.
+
 ### Static Web App (Issue #3)
 
 🔜 **Coming Soon** - Frontend deployment.
@@ -420,9 +513,19 @@ See [LICENSE](LICENSE) file for details.
 - **Issue #B**: Bicep/IaC deployment ✅
 - **Issue #C**: Azure Functions API ✅
 - **Issue #D**: Observability & Monitoring ✅
+- **Issue #F**: Demo script, architecture & runbook docs ✅
 - **Issue #3**: Static Web App deployment 🔜
 
 ## Support
 
-For deployment issues, see the troubleshooting section in [infra/README.md](infra/README.md#troubleshooting).
-For observability questions, see [docs/observability.md](docs/observability.md).
+For deployment issues, see the troubleshooting section in [infra/README.md](infra/README.md#troubleshooting).  
+For observability questions, see [docs/observability.md](docs/observability.md).  
+For demo walkthrough, see [docs/demo-script.md](docs/demo-script.md).
+
+## Additional Resources
+
+- [Microsoft Foundry Documentation](https://foundry.microsoft.com/docs)
+- [Azure OpenAI Service](https://docs.microsoft.com/azure/cognitive-services/openai/)
+- [Azure AI Search](https://docs.microsoft.com/azure/search/)
+- [Application Insights](https://docs.microsoft.com/azure/azure-monitor/app/app-insights-overview)
+- [Azure Monitor](https://docs.microsoft.com/azure/azure-monitor/)
