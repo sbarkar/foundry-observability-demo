@@ -528,4 +528,3 @@ For demo walkthrough, see [docs/demo-script.md](docs/demo-script.md).
 - [Azure AI Search](https://docs.microsoft.com/azure/search/)
 - [Application Insights](https://docs.microsoft.com/azure/azure-monitor/app/app-insights-overview)
 - [Azure Monitor](https://docs.microsoft.com/azure/azure-monitor/)
->>>>>>> main
