@@ -1,0 +1,11 @@
+# OpenTelemetry core packages
+opentelemetry-api==1.27.0
+opentelemetry-sdk==1.27.0
+opentelemetry-semantic-conventions==0.48b0
+
+# Azure Monitor exporters for Application Insights
+azure-monitor-opentelemetry-exporter==1.0.0b28
+fixedint==0.1.6
+psutil~=5.9
+
+# Python standard library (no additional deps needed)

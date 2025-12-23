@@ -1,10 +1,10 @@
 # Foundry Observability Demo
 
-A repository showcasing an example of how to use Microsoft Foundry to deploy a simple and compliant GenAI use case using Microsoft native tools.
+A repository showcasing an example of how to use Microsoft Foundry to deploy a simple and compliant GenAI use case using Microsoft native tools with comprehensive observability and monitoring.
 
 ## Overview
 
-This project demonstrates observability and monitoring best practices for GenAI applications built with Microsoft Foundry, deployed on Azure infrastructure.
+This project demonstrates observability and monitoring best practices for GenAI applications built with Microsoft Foundry, deployed on Azure infrastructure. It includes full OpenTelemetry instrumentation, Application Insights integration, and production-ready KQL queries for monitoring.
 
 ## Architecture
 
@@ -20,12 +20,24 @@ This project demonstrates a full-stack observability solution with:
   - **Stateless Design**: No database, metadata-only logging (no user content stored)
 - **Infrastructure** (`infra/`): Bicep templates for Azure resource deployment
 - **AI Services**: Azure AI Search, Microsoft Foundry
-- **Observability**: Application Insights + Log Analytics Workspace
+- **Observability**: Application Insights + Log Analytics Workspace with custom dashboards
 - **Storage**: Azure Storage Account
 - **Security**: Azure Key Vault for secrets management
-- **Documentation** (`docs/`): Additional project documentation
+- **Documentation** (`docs/`): Comprehensive observability guide with KQL queries
 
 All resources are deployed to **Sweden Central** (except the resource group in Switzerland North).
+
+## Key Features
+
+- ✅ **OpenTelemetry Integration**: Full distributed tracing with hierarchical spans
+- ✅ **Azure Application Insights**: Seamless telemetry export to Azure Monitor
+- ✅ **RAG Observability**: Track document retrieval, context building, and vector search
+- ✅ **LLM Monitoring**: Monitor token usage, latency, and model performance
+- ✅ **Safety Tracking**: Monitor content safety checks and blocked outputs
+- ✅ **Privacy-First**: Metadata-only logging (no raw prompts/responses)
+- ✅ **KQL Dashboards**: 20+ production-ready queries for latency, costs, errors, and usage analysis
+- ✅ **Entra ID Authentication**: JWT validation for secure API access
+- ✅ **Infrastructure as Code**: Automated Bicep deployment
 
 ## Repository Structure
 
@@ -47,6 +59,8 @@ foundry-observability-demo/
 │   ├── .bicepconfig.json      # Bicep configuration
 │   └── README.md              # Detailed infrastructure docs
 ├── docs/                       # Documentation
+│   ├── observability.md       # Observability guide with KQL queries
+│   └── README.md              # Documentation index
 ├── scripts/                    # Utility scripts
 │   └── generate-env.sh        # Generate .env from deployment
 ├── .env.template              # Environment variables template
@@ -190,6 +204,84 @@ Key environment variables (set in `local.settings.json` for local development):
 - `AZURE_KEY_VAULT_ENDPOINT`: Key Vault URI
 - `STORAGE_ACCOUNT_NAME`: Storage account name
 
+## Observability & Monitoring
+
+### OpenTelemetry Instrumentation
+
+The API includes comprehensive OpenTelemetry instrumentation for:
+
+1. **Request Processing** - End-to-end request tracing with correlation IDs
+2. **RAG Operations** - Document retrieval and context building metrics
+3. **LLM Calls** - Token usage, latency, and model performance tracking
+4. **Safety Checks** - Content safety validation and blocked content monitoring
+5. **Error Tracking** - Detailed error logging with type and message
+
+### Span Hierarchy
+
+```
+request.process (root span)
+├── request.rag_phase (if RAG enabled)
+│   ├── rag.retrieve
+│   └── rag.build_context
+├── request.safety_check
+│   └── llm.safety_check
+├── request.llm_phase
+│   └── llm.call
+└── request.response_generation
+```
+
+### Custom Events
+
+- `llm.tokens`: Token usage (prompt, completion, total)
+- `llm.latency`: LLM call latency
+- `rag.retrieval_complete`: RAG retrieval metrics
+- `safety.check_complete`: Safety check results
+- `request.complete`: Request completion summary
+- `request.blocked`: Content safety blocks
+- `request.error`: Error details
+
+### Metrics
+
+- `genai.requests.total`: Total requests processed
+- `genai.errors.total`: Total errors encountered
+- `genai.tokens.total`: Total tokens consumed (by type)
+
+### KQL Queries & Dashboards
+
+The project includes 20+ production-ready KQL queries for:
+- Latency analysis (p50, p95, p99)
+- Token usage and cost estimation
+- RAG performance metrics
+- Error tracking and debugging
+- Safety check monitoring
+- Request volume and success rates
+
+See **[docs/observability.md](docs/observability.md)** for:
+- Complete KQL query library
+- Dashboard creation guide
+- Alert setup recommendations
+- Best practices and troubleshooting
+
+### Sample Queries
+
+**Latency P95 Over Time**
+```kql
+traces
+| where message == "request.complete"
+| extend latency_ms = todouble(customDimensions.["request.total_latency_ms"])
+| summarize p95 = percentile(latency_ms, 95) by bin(timestamp, 5m)
+| render timechart
+```
+
+**Token Usage Over Time**
+```kql
+traces
+| where message == "llm.tokens"
+| extend total_tokens = toint(customDimensions.["llm.usage.total_tokens"])
+| summarize sum(total_tokens) by bin(timestamp, 1h)
+| render timechart
+```
+
 ## API Features
 
 The backend API provides:
@@ -202,6 +294,24 @@ The backend API provides:
 - ✅ Stateless, metadata-only logging (no user content stored)
 - ✅ Comprehensive unit tests (16 tests)
 - ✅ VS Code devcontainer support
+
+## Privacy & Security
+
+This application demonstrates **metadata-only logging**:
+
+✅ **Logged**: Query length, token counts, latency, model names, document counts, correlation IDs  
+❌ **NOT Logged**: Raw prompts, responses, document content, user messages
+
+Security features:
+- **Managed Identities**: Function App uses system-assigned managed identity
+- **RBAC**: Least-privilege access to Key Vault and Storage
+- **Secrets**: All secrets stored in Azure Key Vault
+- **HTTPS Only**: All endpoints enforce HTTPS
+- **TLS 1.2**: Minimum TLS version enforced
+- **JWT Authentication**: Entra ID token validation for API endpoints
+- **No User Content in Logs**: Metadata-only logging policy
+
+Sensitive fields are explicitly filtered in the telemetry module.
 
 ## Development Conventions
 
@@ -251,14 +361,6 @@ npm run format
 npm run format:check
 ```
 
-## Configuration
-
-### API Configuration
-
-Configure the Azure Functions backend by creating a `local.settings.json` file in the `api/` directory. Use `local.settings.example.json` as a template.
-
-**Never commit `local.settings.json` to version control** - it may contain secrets.
-
 ## Deployment
 
 ### Infrastructure (Issue #B)
@@ -272,6 +374,12 @@ See [infra/README.md](infra/README.md) for deployment instructions.
 ✅ **Completed** - Python Function App with JWT auth, OpenAI integration, and OpenTelemetry.
 
 Required app settings are outputted by the infrastructure deployment.
+
+### Observability (Issue #D)
+
+✅ **Completed** - OpenTelemetry instrumentation, Application Insights integration, and KQL dashboards.
+
+See [docs/observability.md](docs/observability.md) for monitoring and query documentation.
 
 ### Static Web App (Issue #3)
 
@@ -295,30 +403,13 @@ Microsoft Foundry projects require manual creation as they are in preview and do
 
 For detailed instructions, see the [Manual Steps section in infra/README.md](infra/README.md#manual-steps-required).
 
-## Monitoring and Observability
-
-All application telemetry flows to Application Insights and Log Analytics:
-
-- **Application Insights**: Real-time monitoring, metrics, and distributed tracing
-- **Log Analytics**: Centralized log aggregation and querying
-- **Custom Dashboards**: (To be configured in Azure Portal)
-
-## Security
-
-- **Managed Identities**: Function App uses system-assigned managed identity
-- **RBAC**: Least-privilege access to Key Vault and Storage
-- **Secrets**: All secrets stored in Azure Key Vault
-- **HTTPS Only**: All endpoints enforce HTTPS
-- **TLS 1.2**: Minimum TLS version enforced
-- **JWT Authentication**: Entra ID token validation for API endpoints
-- **No User Content in Logs**: Metadata-only logging policy
-
 ## Contributing
 
 1. Follow the established code style and conventions
 2. Run linters before committing code
 3. Ensure all tests pass
 4. Keep commits focused and atomic
+5. Maintain privacy-compliant logging in all instrumentation
 
 ## License
 
@@ -326,10 +417,12 @@ See [LICENSE](LICENSE) file for details.
 
 ## Related Issues
 
-- **Issue #B** (This): Bicep/IaC deployment ✅
-- **Issue #C** (This): Azure Functions API ✅
+- **Issue #B**: Bicep/IaC deployment ✅
+- **Issue #C**: Azure Functions API ✅
+- **Issue #D**: Observability & Monitoring ✅
 - **Issue #3**: Static Web App deployment 🔜
 
 ## Support
 
 For deployment issues, see the troubleshooting section in [infra/README.md](infra/README.md#troubleshooting).
+For observability questions, see [docs/observability.md](docs/observability.md).
