@@ -440,7 +440,7 @@ While our default posture is telemetry-only, some use cases require conversation
 **See the main README and infrastructure documentation for:**
 
 1. **Provisioning Cosmos DB**: 
-   - Deploy via Terraform or ARM template
+   - Deploy via Bicep or ARM template
    - Configure partitioning strategy (e.g., by user ID)
    - Set appropriate retention policies
 
