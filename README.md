@@ -1,6 +1,7 @@
 # Foundry Observability Demo
 
 A repository showcasing an example of how to use Microsoft Foundry to deploy a simple and compliant GenAI use case using Microsoft native tools with comprehensive observability and monitoring.
+
 ## Overview
 
 This project demonstrates observability and monitoring best practices for GenAI applications built with Microsoft Foundry, deployed on Azure infrastructure. It includes full OpenTelemetry instrumentation, Application Insights integration, and production-ready KQL queries for monitoring.
